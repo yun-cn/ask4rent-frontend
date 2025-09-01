@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getIcon, LoadingSpinner } from '../utils/icons';
 
 
 
@@ -29,7 +30,7 @@ const SearchComponent = ({ onSearch, isLoading }) => {
         {/* Search Input with Icon */}
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <span className="text-blue-500 text-xl">🔍</span>
+            {getIcon('search', 'md', 'primary')}
           </div>
           <input
             type="text"
@@ -48,12 +49,12 @@ const SearchComponent = ({ onSearch, isLoading }) => {
         >
           {isLoading ? (
             <>
-              <div className="loading-spinner w-5 h-5 border-2 border-white/30 border-t-white" />
+              <LoadingSpinner size="md" className="text-white" />
               <span>Searching...</span>
             </>
           ) : (
             <>
-              <span>🏠</span>
+              {getIcon('home', 'md', 'white')}
               <span>Search Properties</span>
             </>
           )}
@@ -63,7 +64,7 @@ const SearchComponent = ({ onSearch, isLoading }) => {
       {/* Example Queries */}
       <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
         <div className="flex items-start gap-2">
-          <span className="text-blue-600 text-lg">💡</span>
+          {getIcon('lightbulb', 'md', 'primary')}
           <div>
             <p className="font-medium text-blue-900 text-sm mb-2">Try these example searches:</p>
             <div className="space-y-2">

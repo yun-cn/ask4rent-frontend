@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Icons, getIcon, LoadingSpinner } from '../utils/icons';
 
 
 
@@ -80,17 +81,17 @@ const ChatInterface = ({ onSearch, isLoading, messages = [] }) => {
           }`}
           onClick={handleHeaderClick}
         >
-          <div className="text-2xl hover:scale-110 transition-transform cursor-pointer">
-            🤖
+          <div className="hover:scale-110 transition-transform cursor-pointer">
+            {getIcon('bot', 'lg', 'white')}
           </div>
           {!isCollapsed && (
             <>
               <div className="font-semibold text-base">AI Assistant</div>
               <button
                 onClick={toggleCollapse}
-                className="p-1 rounded hover:bg-white/10 transition-colors text-lg"
+                className="p-1 rounded hover:bg-white/10 transition-colors"
               >
-                ✕
+                {getIcon('close', 'sm', 'white')}
               </button>
             </>
           )}
@@ -102,7 +103,7 @@ const ChatInterface = ({ onSearch, isLoading, messages = [] }) => {
             {messages.length === 0 && (
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                  🏠
+                  {getIcon('home', 'sm', 'white')}
                 </div>
                 <div className="bg-gray-50 border border-gray-200 rounded-2xl rounded-bl-sm p-3 max-w-[70%] text-sm leading-relaxed text-gray-800">
                   Hi! I'm your AI rental assistant. Ask me about properties like "Show me 2-bedroom apartments near Massey University under $600/week"
@@ -124,7 +125,7 @@ const ChatInterface = ({ onSearch, isLoading, messages = [] }) => {
                 ) : (
                   <div className="flex items-start gap-3">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                      🏠
+                      {getIcon('home', 'sm', 'white')}
                     </div>
                     <div className="bg-gray-50 border border-gray-200 rounded-2xl rounded-bl-sm p-3 max-w-[70%] text-sm leading-relaxed text-gray-800">
                       {message.content}
@@ -137,7 +138,7 @@ const ChatInterface = ({ onSearch, isLoading, messages = [] }) => {
             {isLoading && (
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                  🏠
+                  {getIcon('home', 'sm', 'white')}
                 </div>
                 <div className="bg-gray-50 border border-gray-200 rounded-2xl rounded-bl-sm p-3 flex items-center gap-1">
                   <div className="w-1.5 h-1.5 bg-gray-600 rounded-full animate-bounce" style={{animationDelay: '-0.32s'}}></div>
@@ -166,9 +167,13 @@ const ChatInterface = ({ onSearch, isLoading, messages = [] }) => {
                 <button
                   type="submit"
                   disabled={isLoading || !input.trim()}
-                  className="w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full flex items-center justify-center transition-all hover:scale-105 hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none text-base"
+                  className="w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full flex items-center justify-center transition-all hover:scale-105 hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
                 >
-                  {isLoading ? '⏳' : '➤'}
+                  {isLoading ? (
+                    <LoadingSpinner size="sm" className="text-white" />
+                  ) : (
+                    getIcon('send', 'sm', 'white')
+                  )}
                 </button>
               </div>
             </form>
