@@ -1,136 +1,102 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { Icons, getIcon, LoadingSpinner } from '../utils/icons';
+import React, { useState, useCallback } from 'react';
+import { getIcon, LoadingSpinner } from '../utils/icons';
+import { useSessionManager } from '../hooks/useSessionManager';
+import CommuteSearchShortcut from './CommuteSearchShortcut';
 
-const HomePage = ({ onSearch, isLoading, user, onShowLogin, onLogout }) => {
-  const [searchMode, setSearchMode] = useState('traditional');
-  const [activeTab, setActiveTab] = useState('rental');
+const HomePage = ({ onSearch, onShowZones, onShowCommuteSearch, isLoading, user, onShowLogin, onLogout }) => {
+  
+  // Use the session manager hook
+  const { 
+    sessionId, 
+    isSessionValid, 
+    isLoading: sessionLoading, 
+    initializeSession 
+  } = useSessionManager();
 
-  const searchModes = useMemo(() => [
-    { id: 'traditional', label: 'Traditional Search', icon: 'search' },
-    { id: 'ai', label: 'AI Assistant', icon: 'bot' }
-  ], []);
 
-  const tabs = useMemo(() => [
-    { id: 'rental', label: 'Rental Search', icon: 'home' },
-    { id: 'school', label: 'School Search', icon: 'graduation' },
-    { id: 'landmark', label: 'Landmark Search', icon: 'mapPin' }
-  ], []);
-
-  const handleSearchModeChange = useCallback((mode) => {
-    setSearchMode(mode);
-  }, []);
-
-  const handleTabChange = useCallback((tab) => {
-    setActiveTab(tab);
-  }, []);
-
-  const renderSearchContent = () => {
-    if (searchMode === 'ai') {
-      return <AISearchForm onSearch={onSearch} isLoading={isLoading} />;
+  // Enhanced search handler with session validation
+  const handleSearchWithSession = useCallback(async (query) => {
+    if (!sessionId || !isSessionValid) {
+      console.warn('Session not valid, attempting to initialize...');
+      
+      if (!sessionLoading) {
+        await initializeSession();
+      }
+      
+      // Wait a moment for session to initialize then retry
+      setTimeout(() => {
+        if (query.trim()) {
+          onSearch(query);
+        }
+      }, 1000);
+      
+      return;
     }
     
-    switch (activeTab) {
-      case 'rental':
-        return <RentalSearchForm onSearch={onSearch} />;
-      case 'school':
-        return <SchoolSearchForm onSearch={onSearch} />;
-      case 'landmark':
-        return <LandmarkSearchForm onSearch={onSearch} />;
-      default:
-        return <RentalSearchForm onSearch={onSearch} />;
+    if (query.trim()) {
+      onSearch(query);
     }
+  }, [sessionId, isSessionValid, sessionLoading, initializeSession, onSearch]);
+
+  const renderSearchContent = () => {
+    // Show loading state while session is initializing
+    if (sessionLoading) {
+      return (
+        <div className="bg-white rounded-xl shadow-lg p-8">
+          <div className="text-center py-16">
+            <LoadingSpinner size="xl" className="text-blue-600 mx-auto mb-4" />
+            <p className="text-gray-600 text-lg">Initializing session...</p>
+          </div>
+        </div>
+      );
+    }
+
+    // Show session status if not valid
+    if (!isSessionValid) {
+      return (
+        <div className="bg-white rounded-xl shadow-lg p-8">
+          <div className="text-center py-16">
+            <div className="text-yellow-500 mb-4">
+              {getIcon('alert', 'xxl', 'warning')}
+            </div>
+            <p className="text-gray-600 text-lg mb-4">Session not initialized</p>
+            <button
+              onClick={initializeSession}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Initialize Session
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // Always return AI Search Form
+    return <AISearchForm onSearch={handleSearchWithSession} isLoading={isLoading} sessionValid={isSessionValid} />;
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex justify-between items-start mb-8">
-          <div className="text-center flex-1">
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">
-              Ask4Rent
-            </h1>
-            <p className="text-gray-600 text-lg">Your trusted rental companion</p>
-          </div>
-          
-          {/* User Authentication */}
-          <div className="flex items-center gap-3">
-            {user ? (
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">
-                    {user.firstName} {user.lastName}
-                  </p>
-                  <p className="text-xs text-gray-500">{user.email}</p>
-                </div>
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center text-white font-medium">
-                  {user.firstName?.[0]?.toUpperCase() || 'U'}
-                </div>
-                <button
-                  onClick={onLogout}
-                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                  title="Sign out"
-                >
-                  {getIcon('logout', 'sm', 'secondary')}
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={onShowLogin}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 hover:shadow-lg"
-              >
-                {getIcon('user', 'sm', 'white')}
-                <span>Sign In</span>
-              </button>
-            )}
-          </div>
+        {/* Main Title */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+            Ask4Rent
+          </h1>
+          <p className="text-gray-600 text-lg">Your trusted rental companion</p>
         </div>
-
-        {/* Search Mode Toggle */}
-        <div className="max-w-2xl mx-auto mb-8">
-          <div className="flex bg-white rounded-xl shadow-lg p-2">
-            {searchModes.map((mode) => (
-              <button
-                key={mode.id}
-                onClick={() => handleSearchModeChange(mode.id)}
-                className={`flex-1 flex items-center justify-center gap-2 py-4 px-6 rounded-lg text-base font-medium transition-all duration-200 ${
-                  searchMode === mode.id
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
-                    : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
-                }`}
-              >
-                {getIcon(mode.icon, 'md', searchMode === mode.id ? 'white' : 'secondary')}
-                <span>{mode.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Traditional Search Tabs */}
-        {searchMode === 'traditional' && (
-          <div className="max-w-4xl mx-auto mb-8">
-            <div className="flex bg-white rounded-xl shadow-lg p-2">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => handleTabChange(tab.id)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    activeTab === tab.id
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
-                  }`}
-                >
-                  {getIcon(tab.icon, 'sm', activeTab === tab.id ? 'white' : 'secondary')}
-                  <span>{tab.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Search Form */}
         <div className="max-w-4xl mx-auto">
           {renderSearchContent()}
+          
+          {/* Search Shortcuts */}
+          {(isSessionValid || !sessionLoading) && (
+            <div className="flex justify-center items-end gap-12 mt-8">
+              <SchoolsSearchShortcut onShowSchools={onShowZones} isLoading={isLoading} />
+              <CommuteSearchShortcut onShowCommuteSearch={onShowCommuteSearch} isLoading={isLoading} />
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -138,41 +104,6 @@ const HomePage = ({ onSearch, isLoading, user, onShowLogin, onLogout }) => {
 };
 
 // Reusable Components
-const FormInput = ({ label, type = 'text', placeholder, value, onChange, className = '' }) => (
-  <div>
-    <label className="block text-sm font-medium text-gray-700 mb-2">
-      {label}
-    </label>
-    <input
-      type={type}
-      placeholder={placeholder}
-      value={value}
-      onChange={onChange}
-      className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors ${className}`}
-    />
-  </div>
-);
-
-const FormSelect = ({ label, value, onChange, options, placeholder, className = '' }) => (
-  <div>
-    <label className="block text-sm font-medium text-gray-700 mb-2">
-      {label}
-    </label>
-    <select
-      value={value}
-      onChange={onChange}
-      className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors ${className}`}
-    >
-      <option value="">{placeholder}</option>
-      {options.map((option, index) => (
-        <option key={index} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
-  </div>
-);
-
 const SubmitButton = ({ children, color = 'blue', className = '', ...props }) => {
   const colorClasses = {
     blue: 'from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700',
@@ -183,7 +114,7 @@ const SubmitButton = ({ children, color = 'blue', className = '', ...props }) =>
   return (
     <button
       type="submit"
-      className={`w-full bg-gradient-to-r ${colorClasses[color]} text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 hover:shadow-lg transform hover:scale-[1.02] flex items-center justify-center gap-2 ${className}`}
+      className={`w-full bg-gradient-to-r ${colorClasses[color]} text-white font-semibold py-4 px-6 rounded-2xl transition-all duration-300 hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none hover:shadow-blue-500/25 ${className}`}
       {...props}
     >
       {children}
@@ -192,7 +123,7 @@ const SubmitButton = ({ children, color = 'blue', className = '', ...props }) =>
 };
 
 // Search Form Components
-const AISearchForm = ({ onSearch, isLoading }) => {
+const AISearchForm = ({ onSearch, isLoading, sessionValid }) => {
   const [query, setQuery] = useState('');
 
   const handleSubmit = useCallback((e) => {
@@ -222,15 +153,20 @@ const AISearchForm = ({ onSearch, isLoading }) => {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             rows={4}
-            className="w-full pl-12 pr-4 py-4 text-base border-2 border-gray-200 rounded-xl outline-none transition-all duration-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 placeholder:text-gray-500 bg-gray-50 focus:bg-white resize-none"
+            className="w-full pl-12 pr-4 py-4 text-base border-2 border-gray-200 rounded-2xl outline-none transition-all duration-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 focus:shadow-lg placeholder:text-gray-500 bg-gray-50 focus:bg-white resize-none hover:border-gray-300 hover:shadow-sm"
           />
         </div>
         
-        <SubmitButton disabled={isLoading || !query.trim()}>
+        <SubmitButton disabled={isLoading || !query.trim() || !sessionValid}>
           {isLoading ? (
             <>
               <LoadingSpinner size="md" className="text-white" />
               <span>Searching...</span>
+            </>
+          ) : !sessionValid ? (
+            <>
+              {getIcon('alert', 'md', 'white')}
+              <span>Session Initializing...</span>
             </>
           ) : (
             <>
@@ -244,317 +180,63 @@ const AISearchForm = ({ onSearch, isLoading }) => {
   );
 };
 
-const RentalSearchForm = ({ onSearch }) => {
-  const [formData, setFormData] = useState({
-    location: '',
-    bedrooms: '',
-    maxRent: '',
-    propertyType: ''
-  });
-
-  const bedroomOptions = useMemo(() => [
-    { value: '1', label: '1 bedroom' },
-    { value: '2', label: '2 bedrooms' },
-    { value: '3', label: '3 bedrooms' },
-    { value: '4', label: '4 bedrooms' },
-    { value: '5', label: '5+ bedrooms' }
-  ], []);
-
-  const propertyTypeOptions = useMemo(() => [
-    { value: 'apartment', label: 'Apartment' },
-    { value: 'house', label: 'House' },
-    { value: 'townhouse', label: 'Townhouse' },
-    { value: 'studio', label: 'Studio' }
-  ], []);
-
-  const buildQuery = useCallback((data) => {
-    const parts = [];
-    
-    if (data.bedrooms) parts.push(`${data.bedrooms}-bedroom`);
-    parts.push(data.propertyType || 'property');
-    if (data.location) parts.push(`in ${data.location}`);
-    if (data.maxRent) parts.push(`under $${data.maxRent}/week`);
-    
-    return parts.join(' ');
-  }, []);
-
-  const handleSubmit = useCallback((e) => {
-    e.preventDefault();
-    const query = buildQuery(formData);
-    if (query.trim()) onSearch(query);
-  }, [formData, buildQuery, onSearch]);
-
-  const handleInputChange = useCallback((field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  }, []);
-
-  return (
-    <div className="bg-white rounded-xl shadow-lg p-8">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-        {getIcon('home', 'lg', 'primary')}
-        Rental Search
-      </h2>
-      
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormInput
-            label="Location"
-            placeholder="e.g., Auckland CBD"
-            value={formData.location}
-            onChange={(e) => handleInputChange('location', e.target.value)}
-          />
-          
-          <FormSelect
-            label="Bedrooms"
-            value={formData.bedrooms}
-            onChange={(e) => handleInputChange('bedrooms', e.target.value)}
-            options={bedroomOptions}
-            placeholder="Any"
-          />
-          
-          <FormInput
-            label="Max Rent (per week)"
-            type="number"
-            placeholder="e.g., 600"
-            value={formData.maxRent}
-            onChange={(e) => handleInputChange('maxRent', e.target.value)}
-          />
-          
-          <FormSelect
-            label="Property Type"
-            value={formData.propertyType}
-            onChange={(e) => handleInputChange('propertyType', e.target.value)}
-            options={propertyTypeOptions}
-            placeholder="Any"
-          />
-        </div>
-        
-        <SubmitButton>
-          {getIcon('search', 'md', 'white')}
-          <span>Search Rentals</span>
-        </SubmitButton>
-      </form>
-    </div>
-  );
-};
-
-const SchoolSearchForm = ({ onSearch }) => {
-  const [formData, setFormData] = useState({
-    schoolName: '',
-    distance: '',
-    bedrooms: '',
-    maxRent: ''
-  });
-
-  const distanceOptions = useMemo(() => [
-    { value: '1km', label: 'Within 1km' },
-    { value: '2km', label: 'Within 2km' },
-    { value: '5km', label: 'Within 5km' },
-    { value: '10km', label: 'Within 10km' }
-  ], []);
-
-  const bedroomOptions = useMemo(() => [
-    { value: '1', label: '1 bedroom' },
-    { value: '2', label: '2 bedrooms' },
-    { value: '3', label: '3 bedrooms' },
-    { value: '4', label: '4 bedrooms' },
-    { value: '5', label: '5+ bedrooms' }
-  ], []);
-
-  const buildQuery = useCallback((data) => {
-    const parts = [];
-    
-    if (data.bedrooms) parts.push(`${data.bedrooms}-bedroom`);
-    parts.push('property');
-    
-    if (data.schoolName) {
-      if (data.distance) {
-        parts.push(`within ${data.distance} of ${data.schoolName}`);
-      } else {
-        parts.push(`near ${data.schoolName}`);
-      }
+// Schools Search Shortcut Component
+const SchoolsSearchShortcut = ({ onShowSchools, isLoading }) => {
+  const handleShowSchools = useCallback(() => {
+    if (onShowSchools) {
+      onShowSchools();
     }
-    
-    if (data.maxRent) parts.push(`under $${data.maxRent}/week`);
-    
-    return parts.join(' ');
-  }, []);
-
-  const handleSubmit = useCallback((e) => {
-    e.preventDefault();
-    const query = buildQuery(formData);
-    if (query.trim()) onSearch(query);
-  }, [formData, buildQuery, onSearch]);
-
-  const handleInputChange = useCallback((field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  }, []);
+  }, [onShowSchools]);
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-8">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-        {getIcon('graduation', 'lg', 'success')}
-        School Search
-      </h2>
-      
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormInput
-            label="School Name"
-            placeholder="e.g., Massey University"
-            value={formData.schoolName}
-            onChange={(e) => handleInputChange('schoolName', e.target.value)}
-          />
+    <div className="relative group">
+        <button
+          onClick={handleShowSchools}
+          disabled={isLoading}
+          className={`w-24 h-24 rounded-3xl transition-all duration-500 ease-out flex flex-col items-center justify-center relative overflow-hidden shadow-xl ${
+            isLoading
+              ? 'bg-gray-100 cursor-not-allowed'
+              : 'bg-gradient-to-br from-green-400 via-green-500 to-emerald-600 hover:from-green-500 hover:via-green-600 hover:to-emerald-700 hover:shadow-2xl hover:shadow-green-500/30 transform hover:scale-125 hover:-translate-y-3 active:scale-105 active:translate-y-0'
+          }`}
+        >
+          {/* Background decoration */}
+          <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-50"></div>
           
-          <FormSelect
-            label="Distance Range"
-            value={formData.distance}
-            onChange={(e) => handleInputChange('distance', e.target.value)}
-            options={distanceOptions}
-            placeholder="Any distance"
-          />
+          {/* Content */}
+          <div className="relative z-10 transition-all duration-300">
+            {isLoading ? (
+              <LoadingSpinner size="lg" className="text-green-600" />
+            ) : (
+              <>
+                <div className="text-4xl mb-2 drop-shadow-lg transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+                  🎓
+                </div>
+                <span className="text-sm text-white/95 font-bold tracking-wider drop-shadow-sm group-hover:text-white transition-colors duration-300">
+                  SCHOOLS
+                </span>
+              </>
+            )}
+          </div>
           
-          <FormSelect
-            label="Bedrooms"
-            value={formData.bedrooms}
-            onChange={(e) => handleInputChange('bedrooms', e.target.value)}
-            options={bedroomOptions}
-            placeholder="Any"
-          />
+          {/* Enhanced shine effect */}
+          {!isLoading && (
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
+          )}
           
-          <FormInput
-            label="Max Rent (per week)"
-            type="number"
-            placeholder="e.g., 600"
-            value={formData.maxRent}
-            onChange={(e) => handleInputChange('maxRent', e.target.value)}
-          />
-        </div>
+          {/* Pulse ring on hover */}
+          {!isLoading && (
+            <div className="absolute inset-0 rounded-3xl border-2 border-white/50 scale-100 opacity-0 group-hover:scale-110 group-hover:opacity-100 transition-all duration-500"></div>
+          )}
+        </button>
         
-        <SubmitButton color="green">
-          {getIcon('search', 'md', 'white')}
-          <span>Search Near Schools</span>
-        </SubmitButton>
-      </form>
-    </div>
-  );
-};
-
-const LandmarkSearchForm = ({ onSearch }) => {
-  const [formData, setFormData] = useState({
-    landmark: '',
-    distance: '',
-    bedrooms: '',
-    maxRent: ''
-  });
-
-  const landmarkOptions = useMemo(() => [
-    { value: 'Sky Tower', label: 'Sky Tower' },
-    { value: 'Auckland CBD', label: 'Auckland CBD' },
-    { value: 'Viaduct Harbour', label: 'Viaduct Harbour' },
-    { value: 'Newmarket', label: 'Newmarket' },
-    { value: 'Ponsonby', label: 'Ponsonby' },
-    { value: 'Mount Eden', label: 'Mount Eden' },
-    { value: 'Takapuna', label: 'Takapuna' },
-    { value: 'Albany', label: 'Albany' },
-    { value: 'Botany Downs', label: 'Botany Downs' },
-    { value: 'Westfield Newmarket', label: 'Westfield Newmarket' },
-    { value: 'Commercial Bay', label: 'Commercial Bay' },
-    { value: 'Queen Street', label: 'Queen Street' }
-  ], []);
-
-  const distanceOptions = useMemo(() => [
-    { value: '1km', label: 'Within 1km' },
-    { value: '2km', label: 'Within 2km' },
-    { value: '5km', label: 'Within 5km' },
-    { value: '10km', label: 'Within 10km' }
-  ], []);
-
-  const bedroomOptions = useMemo(() => [
-    { value: '1', label: '1 bedroom' },
-    { value: '2', label: '2 bedrooms' },
-    { value: '3', label: '3 bedrooms' },
-    { value: '4', label: '4 bedrooms' },
-    { value: '5', label: '5+ bedrooms' }
-  ], []);
-
-  const buildQuery = useCallback((data) => {
-    const parts = [];
-    
-    if (data.bedrooms) parts.push(`${data.bedrooms}-bedroom`);
-    parts.push('property');
-    
-    if (data.landmark) {
-      if (data.distance) {
-        parts.push(`within ${data.distance} of ${data.landmark}`);
-      } else {
-        parts.push(`near ${data.landmark}`);
-      }
-    }
-    
-    if (data.maxRent) parts.push(`under $${data.maxRent}/week`);
-    
-    return parts.join(' ');
-  }, []);
-
-  const handleSubmit = useCallback((e) => {
-    e.preventDefault();
-    const query = buildQuery(formData);
-    if (query.trim()) onSearch(query);
-  }, [formData, buildQuery, onSearch]);
-
-  const handleInputChange = useCallback((field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  }, []);
-
-  return (
-    <div className="bg-white rounded-xl shadow-lg p-8">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-        {getIcon('mapPin', 'lg', 'purple')}
-        Landmark Search
-      </h2>
-      
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormSelect
-            label="Landmark Name"
-            value={formData.landmark}
-            onChange={(e) => handleInputChange('landmark', e.target.value)}
-            options={landmarkOptions}
-            placeholder="Select Landmark"
-          />
-          
-          <FormSelect
-            label="Distance Range"
-            value={formData.distance}
-            onChange={(e) => handleInputChange('distance', e.target.value)}
-            options={distanceOptions}
-            placeholder="Any distance"
-          />
-          
-          <FormSelect
-            label="Bedrooms"
-            value={formData.bedrooms}
-            onChange={(e) => handleInputChange('bedrooms', e.target.value)}
-            options={bedroomOptions}
-            placeholder="Any"
-          />
-          
-          <FormInput
-            label="Max Rent (per week)"
-            type="number"
-            placeholder="e.g., 600"
-            value={formData.maxRent}
-            onChange={(e) => handleInputChange('maxRent', e.target.value)}
-          />
+        {/* Tooltip */}
+        <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+          <div className="bg-gray-900 text-white text-xs px-3 py-1 rounded-lg whitespace-nowrap">
+            Schools by Zone
+            <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
+          </div>
         </div>
-        
-        <SubmitButton color="purple">
-          {getIcon('search', 'md', 'white')}
-          <span>Search Near Landmarks</span>
-        </SubmitButton>
-      </form>
-    </div>
+      </div>
   );
 };
 
