@@ -2,6 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom Scrollbar Styles */
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+  
+  .scrollbar-thumb-blue-300::-webkit-scrollbar-thumb {
+    background-color: rgb(147 197 253);
+    border-radius: 4px;
+  }
+  
+  .scrollbar-track-gray-100::-webkit-scrollbar-track {
+    background-color: rgb(243 244 246);
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .scrollbar-thumb-blue-300::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(96 165 250);
+  }
+}
+
 @layer base {
   * {
     box-sizing: border-box;
@@ -19,6 +43,99 @@
   #root {
     @apply h-full;
   }
+}
+
+/* Commute Search Specific Styles */
+.commute-search-panel {
+  @apply relative;
+}
+
+
+
+
+.custom-location-marker {
+  @apply z-10;
+}
+
+/* Commute search shortcut button styles */
+.commute-shortcut-btn {
+  @apply relative overflow-hidden transition-all duration-500 ease-out;
+  background: linear-gradient(135deg, #fb7185 0%, #f43f5e 50%, #dc2626 100%);
+}
+
+.commute-shortcut-btn:hover {
+  background: linear-gradient(135deg, #f43f5e 0%, #dc2626 50%, #b91c1c 100%);
+}
+
+
+/* Animation for location marker */
+@keyframes locationPulse {
+  0%, 100% {
+    transform: scale(1) rotate(-45deg);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1) rotate(-45deg);
+    opacity: 0.8;
+  }
+}
+
+.location-marker-pulse {
+  animation: locationPulse 2s infinite;
+}
+
+/* Custom Slider Styles */
+.slider-thumb {
+  background: linear-gradient(to right, #e5e7eb, #3b82f6, #e5e7eb);
+  border-radius: 9999px;
+}
+
+.slider-thumb::-webkit-slider-thumb {
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #6366f1, #8b5cf6);
+  border: 3px solid white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4), 0 2px 4px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slider-thumb::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6), 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.slider-thumb::-webkit-slider-thumb:active {
+  transform: scale(1.1);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.7), 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.slider-thumb::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #6366f1, #8b5cf6);
+  border: 3px solid white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4), 0 2px 4px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slider-thumb::-moz-range-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6), 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.slider-thumb::-webkit-slider-track {
+  background: linear-gradient(to right, #e5e7eb, #ddd6fe, #e5e7eb);
+  border-radius: 9999px;
+}
+
+.slider-thumb::-moz-range-track {
+  background: linear-gradient(to right, #e5e7eb, #ddd6fe, #e5e7eb);
+  border-radius: 9999px;
 }
 
 /* Leaflet Map Styles */

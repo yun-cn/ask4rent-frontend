@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { getIcon, LoadingSpinner } from '../utils/icons';
+import { login, signup, getStoredSession } from '../services/api';
 
 const Login = ({ onLogin, onClose }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -7,9 +8,7 @@ const Login = ({ onLogin, onClose }) => {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    confirmPassword: '',
-    firstName: '',
-    lastName: ''
+    confirmPassword: ''
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
@@ -38,12 +37,6 @@ const Login = ({ onLogin, onClose }) => {
     }
 
     if (!isLogin) {
-      if (!formData.firstName) {
-        newErrors.firstName = 'First name is required';
-      }
-      if (!formData.lastName) {
-        newErrors.lastName = 'Last name is required';
-      }
       if (!formData.confirmPassword) {
         newErrors.confirmPassword = 'Please confirm your password';
       } else if (formData.password !== formData.confirmPassword) {
@@ -67,19 +60,32 @@ const Login = ({ onLogin, onClose }) => {
     setErrors({});
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock successful login/registration
-      const userData = {
-        email: formData.email,
-        firstName: formData.firstName || 'User',
-        lastName: formData.lastName || '',
-        isAuthenticated: true
-      };
-      
-      onLogin(userData);
+      const sessionId = getStoredSession();
+      let result;
+
+      if (isLogin) {
+        // Login
+        result = await login(formData.email, formData.password, sessionId);
+      } else {
+        // Signup
+        result = await signup(formData.email, formData.password, sessionId);
+      }
+
+      if (result.success) {
+        // Successful login/registration
+        const userData = {
+          email: formData.email,
+          isAuthenticated: true,
+          ...(result.user && result.user),
+          ...(result.accessToken && { accessToken: result.accessToken })
+        };
+        
+        onLogin(userData);
+      } else {
+        setErrors({ general: result.error || 'Something went wrong. Please try again.' });
+      }
     } catch (error) {
+      console.error('Auth error:', error);
       setErrors({ general: 'Something went wrong. Please try again.' });
     } finally {
       setIsLoading(false);
@@ -103,7 +109,7 @@ const Login = ({ onLogin, onClose }) => {
             </button>
           </div>
           <p className="text-gray-600 mt-1">
-            {isLogin ? 'Sign in to your account' : 'Join Ask4Rent today'}
+            {isLogin ? 'Login to your account' : 'Join Ask4Rent today'}
           </p>
         </div>
 
@@ -115,51 +121,6 @@ const Login = ({ onLogin, onClose }) => {
             </div>
           )}
 
-          {!isLogin && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  First Name
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    {getIcon('user', 'sm', 'muted')}
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="John"
-                    value={formData.firstName}
-                    onChange={(e) => handleInputChange('firstName', e.target.value)}
-                    className={`w-full pl-10 pr-4 py-3 border rounded-lg outline-none transition-colors ${
-                      errors.firstName ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-                    }`}
-                  />
-                </div>
-                {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Last Name
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    {getIcon('user', 'sm', 'muted')}
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Doe"
-                    value={formData.lastName}
-                    onChange={(e) => handleInputChange('lastName', e.target.value)}
-                    className={`w-full pl-10 pr-4 py-3 border rounded-lg outline-none transition-colors ${
-                      errors.lastName ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-                    }`}
-                  />
-                </div>
-                {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>}
-              </div>
-            </div>
-          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -244,7 +205,7 @@ const Login = ({ onLogin, onClose }) => {
                 <span>Please wait...</span>
               </>
             ) : (
-              <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
+              <span>{isLogin ? 'Login' : 'Create Account'}</span>
             )}
           </button>
         </form>
@@ -260,14 +221,12 @@ const Login = ({ onLogin, onClose }) => {
                 setFormData({
                   email: '',
                   password: '',
-                  confirmPassword: '',
-                  firstName: '',
-                  lastName: ''
+                  confirmPassword: ''
                 });
               }}
               className="text-blue-600 hover:text-blue-700 font-medium"
             >
-              {isLogin ? 'Sign up' : 'Sign in'}
+              {isLogin ? 'Sign up' : 'Login'}
             </button>
           </p>
         </div>

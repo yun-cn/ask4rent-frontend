@@ -1,7 +1,10 @@
 import { 
   Home, Bot, Search, GraduationCap, MapPin, User, LogOut, 
   Bed, Bath, ArrowRight, Mail, Lock, Eye, EyeOff, 
-  Send, X, Lightbulb, Clock, Loader2 
+  Send, X, Lightbulb, Clock, Loader2, CheckCircle,
+  AlertTriangle, AlertCircle, Info, Heart, Star,
+  Wifi, Car, Zap, Coffee, Dumbbell, Shield, Map,
+  Target, Trash2, MousePointer
 } from 'lucide-react';
 
 // Icon size configurations
@@ -41,7 +44,11 @@ export const Icons = {
   
   // Location & Places
   mapPin: (props) => <MapPin {...props} />,
+  location: (props) => <MapPin {...props} />,
   graduation: (props) => <GraduationCap {...props} />,
+  map: (props) => <Map {...props} />,
+  target: (props) => <Target {...props} />,
+  click: (props) => <MousePointer {...props} />,
   
   // Property Features
   bed: (props) => <Bed {...props} />,
@@ -56,7 +63,22 @@ export const Icons = {
   // Status & Feedback
   lightbulb: (props) => <Lightbulb {...props} />,
   clock: (props) => <Clock {...props} />,
-  loader: (props) => <Loader2 className="animate-spin" {...props} />
+  loader: (props) => <Loader2 className="animate-spin" {...props} />,
+  checkCircle: (props) => <CheckCircle {...props} />,
+  alert: (props) => <AlertTriangle {...props} />,
+  exclamation: (props) => <AlertCircle {...props} />,
+  info: (props) => <Info {...props} />,
+  heart: (props) => <Heart {...props} />,
+  star: (props) => <Star {...props} />,
+  
+  // Amenities
+  wifi: (props) => <Wifi {...props} />,
+  car: (props) => <Car {...props} />,
+  power: (props) => <Zap {...props} />,
+  coffee: (props) => <Coffee {...props} />,
+  gym: (props) => <Dumbbell {...props} />,
+  security: (props) => <Shield {...props} />,
+  trash: (props) => <Trash2 {...props} />
 };
 
 // Pre-configured icon combinations for common use cases

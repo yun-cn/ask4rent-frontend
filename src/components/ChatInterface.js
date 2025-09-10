@@ -1,35 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Icons, getIcon, LoadingSpinner } from '../utils/icons';
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+import { getIcon, LoadingSpinner } from '../utils/icons';
 
 const ChatInterface = ({ onSearch, isLoading, messages = [] }) => {
   const [input, setInput] = useState('');
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true); // Start collapsed by default
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
   const messagesEndRef = useRef(null);
+  const dragRef = useRef({ startX: 0, startY: 0, initialX: 0, initialY: 0 });
   
-  // Debug: 확인용 콘솔 로그
   console.log('ChatInterface rendered with props:', { onSearch: !!onSearch, isLoading, messagesCount: messages.length });
 
   const suggestions = [
@@ -52,6 +31,7 @@ const ChatInterface = ({ onSearch, isLoading, messages = [] }) => {
     if (!isLoading) {
       onSearch(suggestion);
     }
+    console.log("R")
   };
 
   const toggleCollapse = () => {
@@ -59,33 +39,97 @@ const ChatInterface = ({ onSearch, isLoading, messages = [] }) => {
   };
 
   const handleHeaderClick = () => {
-    if (isCollapsed) {
+    if (isCollapsed && !isDragging) {
       setIsCollapsed(false);
     }
   };
 
+  const handleMouseDown = (e) => {
+    if (isCollapsed) {
+      dragRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        initialX: position.x,
+        initialY: position.y
+      };
+      setIsDragging(false);
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    const deltaX = e.clientX - dragRef.current.startX;
+    const deltaY = e.clientY - dragRef.current.startY;
+    
+    if (!isDragging && (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5)) {
+      setIsDragging(true);
+    }
+    
+    if (isDragging || Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+      const newX = dragRef.current.initialX + deltaX;
+      const newY = dragRef.current.initialY + deltaY;
+      
+      // Keep within viewport bounds
+      const maxX = window.innerWidth - 80; // 64px width + margin
+      const maxY = window.innerHeight - 80;
+      
+      setPosition({
+        x: Math.max(-maxX, Math.min(maxX, newX)),
+        y: Math.max(-maxY, Math.min(maxY, newY))
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+    
+    // Reset dragging state after a short delay to prevent accidental clicks
+    setTimeout(() => setIsDragging(false), 100);
+  };
+
   return (
     <div 
-      className={`fixed top-5 right-5 transition-all duration-300 ease-in-out ${
+      className={`fixed transition-all duration-300 ease-in-out ${
         isCollapsed 
           ? 'w-16 h-16' 
           : 'w-96 max-h-[calc(100vh-8rem)]'
-      }`}
-      style={{ zIndex: 9999 }}
+      } ${isDragging ? 'cursor-grabbing' : isCollapsed ? 'cursor-grab' : ''}`}
+      style={{ 
+        zIndex: 1000,
+        bottom: isCollapsed ? `${20 - position.y}px` : '20px',
+        right: isCollapsed ? `${20 - position.x}px` : '20px',
+        transform: !isCollapsed ? 'none' : undefined
+      }}
+      onMouseDown={handleMouseDown}
     >
       <div className="bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden">
         {/* Chat Header */}
         <div 
-          className={`flex items-center justify-between px-5 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-2xl transition-all ${
-            isCollapsed ? 'cursor-pointer border-none rounded-2xl' : 'cursor-default border-b border-gray-200'
+          className={`flex items-center justify-between bg-gradient-to-r from-blue-600 to-indigo-600 text-white transition-all ${
+            isCollapsed 
+              ? 'cursor-pointer border-none rounded-2xl p-4 hover:from-blue-700 hover:to-indigo-700' 
+              : 'cursor-default border-b border-gray-200 px-5 py-4 rounded-t-2xl'
           }`}
           onClick={handleHeaderClick}
         >
-          <div className="hover:scale-110 transition-transform cursor-pointer">
-            {getIcon('bot', 'lg', 'white')}
-          </div>
-          {!isCollapsed && (
+          {isCollapsed ? (
+            <div className="relative">
+              <div className="hover:scale-110 transition-transform">
+                {getIcon('bot', 'lg', 'white')}
+              </div>
+              {isDragging && (
+                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                  Drag to reposition
+                </div>
+              )}
+            </div>
+          ) : (
             <>
+              <div className="hover:scale-110 transition-transform cursor-pointer">
+                {getIcon('bot', 'lg', 'white')}
+              </div>
               <div className="font-semibold text-base">AI Assistant</div>
               <button
                 onClick={toggleCollapse}

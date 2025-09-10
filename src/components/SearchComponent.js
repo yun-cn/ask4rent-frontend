@@ -1,11 +1,6 @@
 import React, { useState } from 'react';
 import { getIcon, LoadingSpinner } from '../utils/icons';
 
-
-
-
-
-
 const SearchComponent = ({ onSearch, isLoading }) => {
   const [query, setQuery] = useState('');
 
