@@ -56,16 +56,6 @@ const Header = ({
               <span className="text-xl font-bold text-gray-900">Ask4Rent</span>
             </button>
 
-            {/* Navigation Links */}
-            <nav className="hidden md:flex items-center space-x-6">
-              <button
-                onClick={handleFavoritesClick}
-                className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-              >
-                {getIcon('heart', 'sm', 'secondary')}
-                <span className="ml-2">My Favorites</span>
-              </button>
-            </nav>
           </div>
 
           {/* Right Side - User Menu */}
