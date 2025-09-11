@@ -4,7 +4,7 @@ import {
   Send, X, Lightbulb, Clock, Loader2, CheckCircle,
   AlertTriangle, AlertCircle, Info, Heart, Star,
   Wifi, Car, Zap, Coffee, Dumbbell, Shield, Map,
-  Target, Trash2, MousePointer
+  Target, Trash2, MousePointer, Filter, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 // Icon size configurations
@@ -41,6 +41,9 @@ export const Icons = {
   close: (props) => <X {...props} />,
   send: (props) => <Send {...props} />,
   arrow: (props) => <ArrowRight {...props} />,
+  filter: (props) => <Filter {...props} />,
+  chevronDown: (props) => <ChevronDown {...props} />,
+  chevronUp: (props) => <ChevronUp {...props} />,
   
   // Location & Places
   mapPin: (props) => <MapPin {...props} />,

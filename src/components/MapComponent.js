@@ -239,7 +239,6 @@ const MapComponent = ({
     });
   };
 
-  // Component to handle map updates
   const MapUpdater = ({ center, zoom }) => {
     const map = useMap();
     
@@ -252,7 +251,24 @@ const MapComponent = ({
     return null;
   };
 
-  // Component to handle map clicks for commute search
+  const CustomZoomControl = () => {
+    const map = useMap();
+    
+    useEffect(() => {
+      const zoomControl = L.control.zoom({
+        position: 'topright'
+      });
+      
+      map.addControl(zoomControl);
+      
+      return () => {
+        map.removeControl(zoomControl);
+      };
+    }, [map]);
+
+    return null;
+  };
+
   const MapClickHandler = () => {
     const map = useMap();
     
@@ -265,7 +281,6 @@ const MapComponent = ({
       
       map.on('click', handleClick);
       
-      // Change cursor style based on click mode
       if (isMapClickMode) {
         map.getContainer().style.cursor = 'crosshair';
       } else {
@@ -281,9 +296,7 @@ const MapComponent = ({
     return null;
   };
 
-  // Territorial Authority Filter Component
   const TerritorialAuthorityFilter = () => {
-    // Only show filter when we have territorial authorities and we're in school-related modes
     const shouldShowFilter = (displayMode === 'zones' || displayMode === 'properties') && 
                             Array.isArray(territorialAuthorities) && 
                             territorialAuthorities.length > 0;
@@ -295,7 +308,7 @@ const MapComponent = ({
         <div className="relative">
           <button
             onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors w-full min-w-[200px]"
+            className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors w-full min-w-[240px]"
           >
             <div className="flex items-center gap-2 flex-1">
               {getIcon('mapPin', 'sm', 'primary')}
@@ -340,7 +353,42 @@ const MapComponent = ({
     );
   };
 
-  // Create custom icon for selected location marker (commute search)
+  const PropertyFilters = () => {
+    if (displayMode !== 'properties' || !properties || properties.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="absolute top-4 left-96 z-[1000] pointer-events-auto">
+        <div className="flex items-center gap-3 bg-white rounded-lg shadow-lg border border-gray-200 p-3">
+          <input
+            type="number"
+            placeholder="Min $"
+            className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <input
+            type="number"
+            placeholder="Max $"
+            className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <select className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white">
+            <option value="">Any beds</option>
+            <option value="1">1 bed</option>
+            <option value="2">2 beds</option>
+            <option value="3">3 beds</option>
+            <option value="4">4 beds</option>
+          </select>
+          <select className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white">
+            <option value="">Any baths</option>
+            <option value="1">1 bath</option>
+            <option value="2">2 baths</option>
+            <option value="3">3 baths</option>
+          </select>
+        </div>
+      </div>
+    );
+  };
+
   const createLocationIcon = () => {
     const iconHtml = `
       <div style="
@@ -385,11 +433,18 @@ const MapComponent = ({
     <MapContainer
       center={center || defaultCenter}
       zoom={zoom || defaultZoom}
-      style={{ height: '100%', width: '100%' }}
+      style={{ height: '100%', width: '100%', touchAction: 'none' }}
+      scrollWheelZoom={true}
+      doubleClickZoom={true}
+      touchZoom={true}
+      dragging={true}
+      zoomControl={false}
     >
       <MapUpdater center={center} zoom={zoom} />
       <MapClickHandler />
+      <CustomZoomControl />
       <TerritorialAuthorityFilter />
+      <PropertyFilters />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

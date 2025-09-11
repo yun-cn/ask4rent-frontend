@@ -6,34 +6,33 @@ export const useFavorites = () => {
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [lastLoadTime, setLastLoadTime] = useState(0);
+  
+  // Cache duration: 30 seconds
+  const CACHE_DURATION = 30000;
 
   // Get current session
   const getSession = useCallback(() => {
     return getStoredSession();
   }, []);
 
-  // Load favorites from backend
-  const loadFavorites = useCallback(async () => {
+  // Load favorites from backend with caching
+  const loadFavorites = useCallback(async (forceRefresh = false) => {
     let sessionId = getSession();
     
-    // If no session exists, try to create one
+    // If no session exists, just clear favorites and return
     if (!sessionId) {
-      console.log('No session available, attempting to create new session');
-      try {
-        const { getSession: createSession } = await import('../services/api');
-        const sessionResult = await createSession();
-        if (sessionResult.success) {
-          sessionId = sessionResult.sessionId;
-        } else {
-          console.error('Failed to create session');
-          setError('Failed to create session');
-          return;
-        }
-      } catch (err) {
-        console.error('Error creating session:', err);
-        setError('Failed to create session');
-        return;
-      }
+      console.log('No session found for favorites');
+      setFavorites([]);
+      setError(null);
+      return;
+    }
+
+    // Check cache if not forcing refresh
+    const now = Date.now();
+    if (!forceRefresh && (now - lastLoadTime) < CACHE_DURATION) {
+      console.log('Using cached favorites data');
+      return;
     }
 
     setLoading(true);
@@ -43,6 +42,7 @@ export const useFavorites = () => {
       const result = await getFavorites(sessionId);
       if (result.success) {
         setFavorites(result.favorites || []);
+        setLastLoadTime(now);
       } else {
         setError(result.error || 'Failed to load favorites');
         setFavorites([]);
@@ -54,7 +54,7 @@ export const useFavorites = () => {
     } finally {
       setLoading(false);
     }
-  }, [getSession]);
+  }, [getSession, lastLoadTime, CACHE_DURATION]);
 
   // Add a property to favorites
   const addToFavorites = useCallback(async (listingId) => {
@@ -70,7 +70,7 @@ export const useFavorites = () => {
       
       if (result.success) {
         // Reload favorites to get updated list
-        await loadFavorites();
+        await loadFavorites(true);
         return { success: true };
       } else {
         setError(result.error || 'Failed to add to favorites');
@@ -97,8 +97,8 @@ export const useFavorites = () => {
       const result = await removeFavorite(sessionId, listingId);
       
       if (result.success && result.result) {
-        // Reload favorites to get updated list
-        await loadFavorites();
+        // Force reload favorites to get updated list
+        await loadFavorites(true);
         return { success: true };
       } else {
         setError(result.error || 'Failed to remove from favorites');
@@ -130,40 +130,53 @@ export const useFavorites = () => {
 
   // Load favorites on mount and when session changes
   useEffect(() => {
-    loadFavorites();
-  }, [loadFavorites]);
+    // Only load favorites if we have a valid session
+    const sessionId = getSession();
+    if (sessionId) {
+      loadFavorites();
+    }
+  }, [loadFavorites, getSession]);
 
   // Listen for storage changes (including session changes after logout)
   useEffect(() => {
     const handleStorageChange = (e) => {
       if (e.key === 'ask4rent_session' || e.key === 'ask4rent_access_token') {
         console.log('Session or auth changed, reloading favorites');
-        loadFavorites();
+        // Only reload if we have a valid session
+        const sessionId = getSession();
+        if (sessionId) {
+          loadFavorites();
+        } else {
+          // Clear favorites if no session
+          setFavorites([]);
+          setError(null);
+        }
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [loadFavorites]);
+  }, [loadFavorites, getSession]);
 
   // Listen for logout events to refresh favorites
   useEffect(() => {
     const handleUserLoggedOut = () => {
-      console.log('User logged out, refreshing favorites');
+      console.log('User logged out, clearing favorites');
       setFavorites([]);
       setError(null);
-      setTimeout(() => loadFavorites(), 100); // Small delay to ensure new session is ready
+      // Don't automatically reload after logout - let user action trigger it
     };
 
     window.addEventListener('userLoggedOut', handleUserLoggedOut);
     return () => window.removeEventListener('userLoggedOut', handleUserLoggedOut);
-  }, [loadFavorites]);
+  }, []);
 
   // Force refresh favorites (useful after logout)
   const refreshFavorites = useCallback(() => {
     setFavorites([]);
     setError(null);
-    loadFavorites();
+    setLastLoadTime(0); // Reset cache
+    loadFavorites(true);
   }, [loadFavorites]);
 
   return {
