@@ -73,10 +73,12 @@ function App() {
     showWarning: showMapWarning
   } = useMapOverlay();
 
-  // Calculate optimal map center and zoom for all properties
+
+  const displayProperties = properties;
+
   const calculateMapBounds = (properties) => {
     if (!properties || properties.length === 0) {
-      return { center: [-36.8485, 174.7633], zoom: 12 }; // Default Auckland center
+      return { center: [-36.8485, 174.7633], zoom: 12 };
     }
 
     if (properties.length === 1) {
@@ -153,7 +155,7 @@ function App() {
           lat: property.latitude,
           lng: property.longitude
         }));
-        setProperties(mappedProperties);
+        setProperties(mappedProperties); // Initialize filtered properties
         
         // Add AI response
         const resultCount = mappedProperties.length;
@@ -737,7 +739,7 @@ function App() {
           lng: rental.lon || rental.lng || 0,
         }));
         
-        setProperties(mappedProperties);
+        setProperties(mappedProperties); // Initialize filtered properties
         setCommuteSearchData(response);
         
         // Calculate map bounds for properties
@@ -867,7 +869,8 @@ function App() {
         if (!Array.isArray(schools) || schools.length === 0) return "No schools found";
         return `Found ${schools.length} schools in ${selectedTA?.name || 'selected zone'}`;
       default:
-        const propertyCount = Array.isArray(properties) ? properties.length : 0;
+        const propertyCount = Array.isArray(displayProperties) ? displayProperties.length : 0;
+        const totalPropertyCount = Array.isArray(properties) ? properties.length : 0;
         const schoolCount = Array.isArray(schools) ? schools.length : 0;
         
         if (selectedTA && (propertyCount > 0 || schoolCount > 0)) {
@@ -876,9 +879,10 @@ function App() {
           return selectedSchool ? `No properties near ${selectedSchool.name}` : "No properties found";
         }
         
+        const filterText = propertyCount !== totalPropertyCount ? ` (${propertyCount} of ${totalPropertyCount} shown)` : '';
         return selectedSchool 
-          ? `${propertyCount} ${propertyCount === 1 ? 'property' : 'properties'} near ${selectedSchool.name}`
-          : `Found ${propertyCount} ${propertyCount === 1 ? 'property' : 'properties'}`;
+          ? `${propertyCount} ${propertyCount === 1 ? 'property' : 'properties'} near ${selectedSchool.name}${filterText}`
+          : `Found ${propertyCount} ${propertyCount === 1 ? 'property' : 'properties'}${filterText}`;
     }
   };
 
@@ -957,24 +961,42 @@ function App() {
 
       {/* Left Panel - Listings */}
       <div 
-        className="bg-white shadow-2xl lg:shadow-xl border-r border-gray-200 flex flex-col z-20 lg:flex-none flex-1"
-        style={{ width: window.innerWidth >= 1024 ? `${leftPanelWidth}px` : '100%' }}
+        className="bg-white shadow-2xl lg:shadow-xl border-r border-gray-200 flex flex-col z-20 lg:flex-none flex-1 isolated-scroll"
+        style={{ 
+          width: window.innerWidth >= 1024 ? `${leftPanelWidth}px` : '100%'
+        }}
       >
         {/* Results Info */}
         <div className="hidden lg:block px-6 py-4 border-b border-gray-200 bg-gray-50">
           <p className="text-sm text-gray-700 font-medium">{getResultText()}</p>
         </div>
+
         
         {/* Content Container */}
         <div 
-          className={`flex-1 overflow-y-auto scrollbar-thin ${
+          className={`flex-1 scroll-container isolated-scroll scrollbar-thin ${
             displayMode === 'zones'
               ? 'scrollbar-thumb-green-300 scrollbar-track-gray-100 hover:scrollbar-thumb-green-400' 
               : displayMode === 'territorialAuthorities'
               ? 'scrollbar-thumb-purple-300 scrollbar-track-gray-100 hover:scrollbar-thumb-purple-400'
               : 'scrollbar-thumb-blue-300 scrollbar-track-gray-100 hover:scrollbar-thumb-blue-400'
           }`}
-          style={{height: 'calc(100vh - 160px)'}}
+          style={{
+            height: 'calc(100vh - 160px)'
+          }}
+          onWheel={(e) => {
+            // Completely prevent wheel events from propagating to parent elements (map)
+            e.stopPropagation();
+          }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
+          }}
+          onTouchMove={(e) => {
+            e.stopPropagation();
+          }}
+          onTouchEnd={(e) => {
+            e.stopPropagation();
+          }}
         >
           <div className="p-3 space-y-2">
             {displayMode === 'commute' ? (
@@ -1023,8 +1045,8 @@ function App() {
                       </div>
                     </div>
                     
-                    <div className="p-4">
-                      <h3 className="font-semibold text-lg text-purple-900 mb-2">
+                    <div className="p-4 pb-6">
+                      <h3 className="font-semibold text-base text-purple-900 mb-3 territory-name-full">
                         {ta.name}
                       </h3>
                       <div className="text-sm text-gray-600">
@@ -1095,7 +1117,7 @@ function App() {
                     <PropertyCardSkeleton key={i} />
                   ))}
                 </div>
-              ) : properties.length === 0 ? (
+              ) : displayProperties.length === 0 ? (
                 <EmptyState 
                   type="search" 
                   title="No properties found" 
@@ -1111,7 +1133,7 @@ function App() {
                 />
               ) : (
                 <>
-                  {properties.map((property, index) => {
+                  {displayProperties.map((property, index) => {
                     const propertyId = property.id || property.address;
                     const isHighlighted = highlightedPropertyId === propertyId;
                     const isSelected = selectedPropertyId === propertyId;
@@ -1276,7 +1298,7 @@ function App() {
       {/* Right Panel - Map */}
       <div className="flex-1 relative bg-gray-100 h-full overflow-hidden">
         <MapComponent
-          properties={properties}
+          properties={displayProperties}
           center={mapCenter}
           zoom={mapZoom}
           onMarkerClick={handleMapMarkerClick}
@@ -1295,6 +1317,7 @@ function App() {
           selectedLocation={selectedLocation}
           commuteSearchData={commuteSearchData}
         />
+
         
         <ChatInterface
           onSearch={handleSearch}

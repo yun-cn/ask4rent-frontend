@@ -45,27 +45,19 @@ const Header = ({
           {/* Left Side - Logo and Navigation */}
           <div className="flex items-center space-x-8">
             {/* Logo */}
-            <div className="flex items-center space-x-2">
+            <button
+              onClick={handleHomeClick}
+              className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
+              title="Back to Home"
+            >
               <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
                 {getIcon('home', 'sm', 'white')}
               </div>
               <span className="text-xl font-bold text-gray-900">Ask4Rent</span>
-            </div>
+            </button>
 
             {/* Navigation Links */}
             <nav className="hidden md:flex items-center space-x-6">
-              <button
-                onClick={handleHomeClick}
-                className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  currentPage === 'home'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-              >
-                {getIcon('home', 'sm', currentPage === 'home' ? 'primary' : 'secondary')}
-                <span className="ml-2">Home</span>
-              </button>
-              
               <button
                 onClick={handleFavoritesClick}
                 className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"

@@ -380,16 +380,11 @@ export const querySchoolZone = async (sessionId, schoolName) => {
 // Get territorial authorities (for Zone button functionality)
 export const getTerritorialAuthorities = async (sessionId) => {
   try {
-    const requestData = {
-      session_id: sessionId
-    };
-
-    const response = await fetch(`${API_BASE_URL}/query/getTerritorialAuthorities`, {
+    const response = await fetch(`${API_BASE_URL}/query/getTerritorialAuthorities?session_id=${sessionId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(requestData),
     });
 
     if (!response.ok) {
