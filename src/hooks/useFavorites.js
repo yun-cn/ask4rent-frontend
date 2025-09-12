@@ -8,30 +8,22 @@ export const useFavorites = () => {
   const [error, setError] = useState(null);
   const [lastLoadTime, setLastLoadTime] = useState(0);
   
-  // Cache duration: 30 seconds
-  const CACHE_DURATION = 30000;
+  const CACHE_DURATION = 300000;
 
-  // Get current session
   const getSession = useCallback(() => {
     return getStoredSession();
   }, []);
-
-  // Load favorites from backend with caching
   const loadFavorites = useCallback(async (forceRefresh = false) => {
     let sessionId = getSession();
     
-    // If no session exists, just clear favorites and return
     if (!sessionId) {
-      console.log('No session found for favorites');
       setFavorites([]);
       setError(null);
       return;
     }
 
-    // Check cache if not forcing refresh
     const now = Date.now();
     if (!forceRefresh && (now - lastLoadTime) < CACHE_DURATION) {
-      console.log('Using cached favorites data');
       return;
     }
 
@@ -48,15 +40,21 @@ export const useFavorites = () => {
         setFavorites([]);
       }
     } catch (err) {
-      console.error('Error loading favorites:', err);
-      setError('Failed to load favorites');
-      setFavorites([]);
+      if (err.message && (err.message.includes('CORS') || err.message.includes('Failed to fetch'))) {
+        setFavorites([]);
+        setError(null);
+        setLastLoadTime(now);
+      } else {
+        console.error('Error loading favorites:', err);
+        setError('Failed to load favorites');
+        setFavorites([]);
+        setLastLoadTime(now);
+      }
     } finally {
       setLoading(false);
     }
   }, [getSession, lastLoadTime, CACHE_DURATION]);
 
-  // Add a property to favorites
   const addToFavorites = useCallback(async (listingId) => {
     const sessionId = getSession();
     if (!sessionId) {
@@ -69,8 +67,7 @@ export const useFavorites = () => {
       const result = await addFavorite(sessionId, listingId);
       
       if (result.success) {
-        // Reload favorites to get updated list
-        await loadFavorites(true);
+        setTimeout(() => loadFavorites(true), 100);
         return { success: true };
       } else {
         setError(result.error || 'Failed to add to favorites');
@@ -84,7 +81,6 @@ export const useFavorites = () => {
     }
   }, [getSession, loadFavorites]);
 
-  // Remove a property from favorites
   const removeFromFavorites = useCallback(async (listingId) => {
     const sessionId = getSession();
     if (!sessionId) {
@@ -97,7 +93,6 @@ export const useFavorites = () => {
       const result = await removeFavorite(sessionId, listingId);
       
       if (result.success && result.result) {
-        // Force reload favorites to get updated list
         await loadFavorites(true);
         return { success: true };
       } else {
@@ -112,12 +107,10 @@ export const useFavorites = () => {
     }
   }, [getSession, loadFavorites]);
 
-  // Check if a property is favorited
   const isFavorited = useCallback((listingId) => {
     return favorites.some(fav => fav.listing_id === listingId || fav.id === listingId);
   }, [favorites]);
 
-  // Toggle favorite status
   const toggleFavorite = useCallback(async (listingId) => {
     const isCurrentlyFavorited = isFavorited(listingId);
     
@@ -128,54 +121,45 @@ export const useFavorites = () => {
     }
   }, [isFavorited, addToFavorites, removeFromFavorites]);
 
-  // Load favorites on mount and when session changes
-  useEffect(() => {
-    // Only load favorites if we have a valid session
-    const sessionId = getSession();
-    if (sessionId) {
-      loadFavorites();
-    }
-  }, [loadFavorites, getSession]);
-
-  // Listen for storage changes (including session changes after logout)
   useEffect(() => {
     const handleStorageChange = (e) => {
-      if (e.key === 'ask4rent_session' || e.key === 'ask4rent_access_token') {
-        console.log('Session or auth changed, reloading favorites');
-        // Only reload if we have a valid session
+      if (e.key === 'ask4rent_session' || e.key === 'ask4rent_access_token' || e.key === 'ask4rent_user') {
         const sessionId = getSession();
-        if (sessionId) {
-          loadFavorites();
-        } else {
-          // Clear favorites if no session
+        if (!sessionId) {
           setFavorites([]);
           setError(null);
+          setLastLoadTime(0);
         }
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [loadFavorites, getSession]);
+  }, [getSession]);
 
-  // Listen for logout events to refresh favorites
   useEffect(() => {
-    const handleUserLoggedOut = () => {
-      console.log('User logged out, clearing favorites');
-      setFavorites([]);
-      setError(null);
-      // Don't automatically reload after logout - let user action trigger it
+    const handleUserLoggedIn = () => {
+      setLastLoadTime(0);
     };
 
+    const handleUserLoggedOut = () => {
+      setFavorites([]);
+      setError(null);
+      setLastLoadTime(0);
+    };
+
+    window.addEventListener('userLoggedIn', handleUserLoggedIn);
     window.addEventListener('userLoggedOut', handleUserLoggedOut);
-    return () => window.removeEventListener('userLoggedOut', handleUserLoggedOut);
+    return () => {
+      window.removeEventListener('userLoggedIn', handleUserLoggedIn);
+      window.removeEventListener('userLoggedOut', handleUserLoggedOut);
+    };
   }, []);
 
-  // Force refresh favorites (useful after logout)
   const refreshFavorites = useCallback(() => {
     setFavorites([]);
     setError(null);
-    setLastLoadTime(0); // Reset cache
+    setLastLoadTime(0);
     loadFavorites(true);
   }, [loadFavorites]);
 

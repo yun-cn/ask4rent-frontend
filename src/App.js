@@ -780,6 +780,10 @@ function App() {
     setShowLogin(false);
     // Save user data to localStorage for persistence
     localStorage.setItem('user', JSON.stringify(userData));
+    
+    // Trigger custom event to refresh favorites
+    console.log('User logged in - dispatching userLoggedIn event');
+    window.dispatchEvent(new CustomEvent('userLoggedIn', { detail: userData }));
   };
 
 
@@ -1005,10 +1009,12 @@ function App() {
       }
     }
 
-    // Set up token expiration monitoring
+    // Set up token expiration monitoring only if user exists
+    if (!user) return;
+
     const checkTokenExpiration = () => {
-      if (user && isTokenExpired()) {
-        console.log('Token expired, automatically logging out user');
+      if (isTokenExpired()) {
+        console.log('Token expired, switching user to guest mode');
         handleAutoLogout();
       }
     };
@@ -1028,7 +1034,7 @@ function App() {
       clearInterval(tokenCheckInterval);
       window.removeEventListener('tokenExpired', handleTokenExpiredEvent);
     };
-  }, [user]);
+  }, []); // Remove user dependency to prevent infinite loops
 
   // Handle automatic logout when token expires
   const handleAutoLogout = async () => {
@@ -1053,11 +1059,11 @@ function App() {
       setIsMapClickMode(false);
       setCommuteSearchData(null);
       
-      // Show notification
+      // Show notification about switching to guest mode
       showWarning(
-        'Your session has expired. You have been automatically logged out.',
+        'Your session has expired. You are now in guest mode. Log in again to access your favorites.',
         {
-          title: 'Session Expired',
+          title: 'Switched to Guest Mode',
           duration: 5000
         }
       );
@@ -1070,7 +1076,7 @@ function App() {
       localStorage.removeItem('ask4rent_user');
       localStorage.removeItem('ask4rent_token_timestamp');
       
-      showError('Session expired. Please log in again if needed.');
+      showWarning('Switched to guest mode. Log in again to access your account.');
     }
   };
 

@@ -293,7 +293,7 @@ const MapComponent = ({
         map.off('click', handleClick);
         map.getContainer().style.cursor = '';
       };
-    }, [map]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [map, isMapClickMode, onMapClick]);
     
     return null;
   };

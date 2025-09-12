@@ -9,10 +9,10 @@ const FavoritesList = ({ isVisible, onClose }) => {
   const [showDetails, setShowDetails] = useState({});
 
   useEffect(() => {
-    if (isVisible) {
-      loadFavorites();
+    if (isVisible && !loading) { // Only load if not already loading
+      loadFavorites(); // Use normal loading, not forced
     }
-  }, [isVisible, loadFavorites]);
+  }, [isVisible, loadFavorites, loading]);
 
   const toggleDetails = (listingId) => {
     setShowDetails(prev => ({
@@ -99,6 +99,13 @@ const FavoritesList = ({ isVisible, onClose }) => {
                         <FavoriteButton 
                           listingId={favorite.listing_id || favorite.id}
                           size="small"
+                          forceState={true}
+                          removeOnly={true}
+                          onToggle={(listingId, newState, result) => {
+                            if (result.success) {
+                              loadFavorites(true);
+                            }
+                          }}
                         />
                       </div>
                       
@@ -146,10 +153,7 @@ const FavoritesList = ({ isVisible, onClose }) => {
                         {((favorite.property?.longitude && favorite.property?.latitude) || 
                           (favorite.coordinates?.lon && favorite.coordinates?.lat)) && (
                           <button
-                            onClick={() => {
-                              // This could trigger showing the property on the map
-                              console.log('Show on map:', favorite);
-                            }}
+                            onClick={() => {}}
                             className="text-sm text-green-600 hover:text-green-800 transition-colors"
                           >
                             View on Map

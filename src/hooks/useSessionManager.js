@@ -205,7 +205,7 @@ export const useSessionManager = () => {
   // Initialize session on mount
   useEffect(() => {
     initializeSession();
-  }, [initializeSession]);
+  }, []); // Remove initializeSession from dependencies to prevent infinite loop
 
   // Cleanup on unmount
   useEffect(() => {

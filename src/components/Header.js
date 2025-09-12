@@ -13,11 +13,17 @@ const Header = ({
   const userLoggedIn = isLoggedIn();
   const user = getStoredUser();
 
-  const handleUserMenuToggle = () => {
-    setShowUserMenu(!showUserMenu);
+  const handleUserMenuToggle = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Force state update using functional form
+    setShowUserMenu(prevState => !prevState);
   };
 
-  const handleFavoritesClick = () => {
+  const handleFavoritesClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     setShowUserMenu(false);
     onShowFavorites();
   };
@@ -27,7 +33,9 @@ const Header = ({
     onShowLogin();
   };
 
-  const handleLogoutClick = () => {
+  const handleLogoutClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     setShowUserMenu(false);
     onLogout();
   };
@@ -38,7 +46,7 @@ const Header = ({
   };
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-[1100]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           
@@ -77,7 +85,8 @@ const Header = ({
                   {/* Logged in user */}
                   <button
                     onClick={handleUserMenuToggle}
-                    className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                    className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer relative z-10"
+                    style={{ pointerEvents: 'auto' }}
                   >
                     <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center text-white font-medium text-sm">
                       {user?.email?.[0]?.toUpperCase() || 'U'}
@@ -95,7 +104,7 @@ const Header = ({
 
                   {/* Dropdown Menu */}
                   {showUserMenu && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-10">
+                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-[1200]">
                       <div className="px-4 py-3 border-b border-gray-100">
                         <p className="text-sm font-medium text-gray-900">{user?.email}</p>
                         <p className="text-xs text-green-600 font-medium">✓ Premium Member</p>
@@ -104,7 +113,8 @@ const Header = ({
                       
                       <button
                         onClick={handleFavoritesClick}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center cursor-pointer"
+                        style={{ pointerEvents: 'auto' }}
                       >
                         {getIcon('heart', 'sm', 'secondary')}
                         <span className="ml-3">My Favorites</span>
@@ -112,7 +122,8 @@ const Header = ({
                       
                       <button
                         onClick={handleLogoutClick}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center cursor-pointer"
+                        style={{ pointerEvents: 'auto' }}
                       >
                         {getIcon('logout', 'sm', 'secondary')}
                         <span className="ml-3">Sign Out</span>
@@ -125,7 +136,8 @@ const Header = ({
                   {/* Not logged in */}
                   <button
                     onClick={handleUserMenuToggle}
-                    className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                    className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer relative z-10"
+                    style={{ pointerEvents: 'auto' }}
                   >
                     <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white font-medium text-sm">
                       {getIcon('user', 'sm', 'white')}
@@ -141,7 +153,7 @@ const Header = ({
 
                   {/* Dropdown Menu for Guest */}
                   {showUserMenu && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-10">
+                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-[1200]">
                       <div className="px-4 py-3 border-b border-gray-100">
                         <p className="text-sm font-medium text-gray-900">Guest User</p>
                         <p className="text-xs text-yellow-600 font-medium">⚠️ Temporary Session</p>
@@ -150,7 +162,8 @@ const Header = ({
                       
                       <button
                         onClick={handleFavoritesClick}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center cursor-pointer"
+                        style={{ pointerEvents: 'auto' }}
                       >
                         {getIcon('heart', 'sm', 'secondary')}
                         <span className="ml-3">My Favorites</span>
@@ -160,7 +173,8 @@ const Header = ({
                       <div className="border-t border-gray-100 mt-2 pt-2">
                         <button
                           onClick={handleLoginClick}
-                          className="w-full px-4 py-2 text-left text-sm bg-blue-50 text-blue-700 hover:bg-blue-100 flex items-center font-medium"
+                          className="w-full px-4 py-2 text-left text-sm bg-blue-50 text-blue-700 hover:bg-blue-100 flex items-center font-medium cursor-pointer"
+                          style={{ pointerEvents: 'auto' }}
                         >
                           {getIcon('user', 'sm', 'primary')}
                           <span className="ml-3">Sign In / Sign Up</span>
@@ -176,11 +190,17 @@ const Header = ({
         </div>
       </div>
 
-      {/* Click outside to close menu */}
       {showUserMenu && (
         <div 
-          className="fixed inset-0 z-0" 
-          onClick={() => setShowUserMenu(false)}
+          className="fixed inset-0 z-[1150]" 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowUserMenu(false);
+            }
+          }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+          }}
         />
       )}
     </header>
