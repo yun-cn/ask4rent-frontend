@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getIcon } from './utils/icons';
 import MapComponent from './components/MapComponent';
 import ChatInterface from './components/ChatInterface';
@@ -8,13 +8,14 @@ import Login from './components/Login';
 import NotificationToast from './components/NotificationToast';
 import MapOverlay from './components/MapOverlay';
 import { ContextualLoader, PropertyCardSkeleton, EmptyState } from './components/LoadingStates';
-import { queryProperties, getTerritorialAuthorities, getSchoolsByTA, getRentalsBySchool, searchCommuteIsochrone, logout } from './services/api';
+import { queryProperties, getTerritorialAuthorities, getSchoolsByTA, getRentalsBySchool, searchCommuteIsochrone, logout, isLoggedIn, isTokenExpired } from './services/api';
 import CommuteSearchComponent from './components/CommuteSearchComponent';
 import FavoritesList from './components/FavoritesList';
 import FavoriteButton from './components/FavoriteButton';
 import { useSessionManager } from './hooks/useSessionManager';
 import { useNotifications } from './hooks/useNotifications';
 import { useMapOverlay } from './hooks/useMapOverlay';
+import PropertyFilters from './components/PropertyFilters';
 import './App.css';
 
 function App() {
@@ -45,13 +46,14 @@ function App() {
   const [showFavoritesList, setShowFavoritesList] = useState(false);
   
   // Layout states
-  const [leftPanelWidth, setLeftPanelWidth] = useState(300); // Default to 300px (smaller than before)
+  const [leftPanelWidth, setLeftPanelWidth] = useState(400); // Increased to 400px for better input visibility
   
   // Use the session manager hook
   const { 
     sessionId, 
     isSessionValid, 
     isLoading: sessionLoading, 
+    triggerSessionRefresh,
     initializeSession 
   } = useSessionManager();
   
@@ -73,8 +75,107 @@ function App() {
     showWarning: showMapWarning
   } = useMapOverlay();
 
+  // Property filter state
+  const [propertyFilters, setPropertyFilters] = useState({
+    minPrice: '',
+    maxPrice: '',
+    bedrooms: '',
+    bathrooms: '',
+    minBedrooms: '',
+    maxBedrooms: '',
+    minBathrooms: '',
+    maxBathrooms: ''
+  });
 
-  const displayProperties = properties;
+  // Handle property filter changes
+  const handlePropertyFilter = (filters) => {
+    console.log('Updating property filters:', filters);
+    setPropertyFilters(filters);
+  };
+
+  // Reset filters function
+  const resetPropertyFilters = () => {
+    setPropertyFilters({
+      minPrice: '',
+      maxPrice: '',
+      bedrooms: '',
+      bathrooms: '',
+      minBedrooms: '',
+      maxBedrooms: '',
+      minBathrooms: '',
+      maxBathrooms: ''
+    });
+  };
+
+  // Filter properties based on current filters
+  const displayProperties = useMemo(() => {
+    if (!properties || properties.length === 0) return [];
+    
+    // Debug: log current filters and properties
+    console.log('=== FILTERING DEBUG ===');
+    console.log('Current propertyFilters:', propertyFilters);
+    console.log('Total properties before filtering:', properties.length);
+    
+    const filtered = properties.filter(property => {
+      // Price filter
+      const rent = property.rent_per_week || property.rent || 0;
+      if (propertyFilters.minPrice && rent < parseFloat(propertyFilters.minPrice)) {
+        return false;
+      }
+      if (propertyFilters.maxPrice && rent > parseFloat(propertyFilters.maxPrice)) {
+        return false;
+      }
+      
+      // Bedrooms filter (legacy and new range)
+      if (propertyFilters.bedrooms) {
+        const filterBeds = propertyFilters.bedrooms;
+        const propBeds = property.bedrooms || 0;
+        if (filterBeds === '4') {
+          // 4+ beds
+          if (propBeds < 4) return false;
+        } else {
+          if (propBeds !== parseInt(filterBeds)) return false;
+        }
+      }
+      
+      // Bedrooms range filter (new Any-Any format)
+      const propBeds = property.bedrooms || 0;
+      if (propertyFilters.minBedrooms && propBeds < parseFloat(propertyFilters.minBedrooms)) {
+        return false;
+      }
+      if (propertyFilters.maxBedrooms && propBeds > parseFloat(propertyFilters.maxBedrooms)) {
+        return false;
+      }
+      
+      // Bathrooms filter (legacy and new range)
+      if (propertyFilters.bathrooms) {
+        const filterBaths = propertyFilters.bathrooms;
+        const propBaths = property.bathrooms || 0;
+        if (filterBaths === '3') {
+          // 3+ baths
+          if (propBaths < 3) return false;
+        } else {
+          if (propBaths !== parseInt(filterBaths)) return false;
+        }
+      }
+      
+      // Bathrooms range filter (new Any-Any format)
+      const propBaths = property.bathrooms || 0;
+      if (propertyFilters.minBathrooms && propBaths < parseFloat(propertyFilters.minBathrooms)) {
+        return false;
+      }
+      if (propertyFilters.maxBathrooms && propBaths > parseFloat(propertyFilters.maxBathrooms)) {
+        return false;
+      }
+      
+      return true;
+    });
+    
+    console.log('Properties after filtering:', filtered.length);
+    console.log('=== FILTERING DEBUG END ===');
+    
+    return filtered;
+  }, [properties, propertyFilters]);
 
   const calculateMapBounds = (properties) => {
     if (!properties || properties.length === 0) {
@@ -121,6 +222,11 @@ function App() {
   };
 
   const handleSearch = async (query) => {
+    // Trigger session refresh for AI query
+    if (triggerSessionRefresh) {
+      triggerSessionRefresh();
+    }
+    
     // Switch to results page
     setCurrentPage('results');
     
@@ -208,6 +314,11 @@ function App() {
   };
 
   const handlePropertySelect = (property) => {
+    // Trigger session refresh for property card interaction
+    if (triggerSessionRefresh) {
+      triggerSessionRefresh();
+    }
+    
     setMapCenter([property.lat, property.lng]);
     setMapZoom(16); // Zoom closer when selecting individual property
     setSelectedPropertyId(property.id || property.address);
@@ -235,6 +346,11 @@ function App() {
 
 
   const handleMapMarkerClick = (property) => {
+    // Trigger session refresh for map interaction
+    if (triggerSessionRefresh) {
+      triggerSessionRefresh();
+    }
+    
     setSelectedPropertyId(property.id || property.address);
     setHighlightedPropertyId(property.id || property.address);
     
@@ -287,9 +403,10 @@ function App() {
     setCurrentPage('results');
     setDisplayMode('territorialAuthorities');
     
-    // Clear previous results
+    // Clear previous results and filters
     setProperties([]);
     setMessages([]);
+    resetPropertyFilters();
     setSchoolInfo(null);
     setSchoolZone(null);
     setSelectedTA(null);
@@ -371,8 +488,9 @@ function App() {
     setSelectedTA(ta);
     setDisplayMode('zones'); // Change to zones mode to show area and schools
     
-    // Clear previous data
+    // Clear previous data and filters
     setSchools([]);
+    resetPropertyFilters();
     setSelectedSchool(null);
     setSchoolInfo(null);
     setSchoolZone(null);
@@ -453,6 +571,9 @@ function App() {
     setSelectedSchool(school);
     setDisplayMode('properties'); // Switch to properties mode to show rentals
     
+    // Reset filters when selecting a new school
+    resetPropertyFilters();
+    
     if (!sessionId || !isSessionValid) {
       console.log('Session invalid - aborting school click');
       return;
@@ -524,9 +645,32 @@ function App() {
             setMapZoom(14);
           }
         } else {
-          // New school has no properties - clear everything for cleaner UX
-          console.log('New school has no properties - clearing all properties');
-          setProperties([]);
+          // New school has no properties from getRentalsBySchool - try general property query
+          console.log('New school has no properties from getRentalsBySchool - trying general query');
+          console.log('School name:', school.name);
+          
+          try {
+            // Try a general property query for the area
+            const generalQuery = `Properties near ${school.name}`;
+            console.log('Trying general query:', generalQuery);
+            const generalResponse = await queryProperties(sessionId, generalQuery);
+            
+            if (generalResponse.success && generalResponse.properties && generalResponse.properties.length > 0) {
+              console.log('General query found properties:', generalResponse.properties.length);
+              const mappedGeneralProperties = generalResponse.properties.map(property => ({
+                ...property,
+                lat: property.latitude || property.lat,
+                lng: property.longitude || property.lng || property.lon
+              }));
+              setProperties(mappedGeneralProperties);
+            } else {
+              console.log('No properties found with general query either');
+              setProperties([]);
+            }
+          } catch (error) {
+            console.error('General query failed:', error);
+            setProperties([]);
+          }
           
           // Still center on the new school location if available
           const lat = school.latitude || school.lat;
@@ -676,9 +820,10 @@ function App() {
     setCurrentPage('results');
     setDisplayMode('commute');
     
-    // Clear previous results
+    // Clear previous results and filters
     setProperties([]);
     setMessages([]);
+    resetPropertyFilters();
     setSchoolInfo(null);
     setSchoolZone(null);
     setSelectedTA(null);
@@ -838,17 +983,96 @@ function App() {
     document.body.style.userSelect = 'none';
   };
 
-  // Check for saved user data on app load
+  // Check for saved user data and setup token expiration monitoring
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
+    const savedUser = localStorage.getItem('ask4rent_user');
     if (savedUser) {
       try {
-        setUser(JSON.parse(savedUser));
+        const userData = JSON.parse(savedUser);
+        // Check if token is still valid
+        if (isLoggedIn()) {
+          setUser(userData);
+        } else {
+          // Token expired, clear data
+          localStorage.removeItem('ask4rent_user');
+          localStorage.removeItem('ask4rent_access_token');
+          localStorage.removeItem('ask4rent_token_timestamp');
+        }
       } catch (error) {
-        localStorage.removeItem('user');
+        localStorage.removeItem('ask4rent_user');
+        localStorage.removeItem('ask4rent_access_token');
+        localStorage.removeItem('ask4rent_token_timestamp');
       }
     }
-  }, []);
+
+    // Set up token expiration monitoring
+    const checkTokenExpiration = () => {
+      if (user && isTokenExpired()) {
+        console.log('Token expired, automatically logging out user');
+        handleAutoLogout();
+      }
+    };
+
+    // Check every minute
+    const tokenCheckInterval = setInterval(checkTokenExpiration, 60000);
+
+    // Listen for token expiration events from API calls
+    const handleTokenExpiredEvent = () => {
+      console.log('Received token expired event from API');
+      handleAutoLogout();
+    };
+
+    window.addEventListener('tokenExpired', handleTokenExpiredEvent);
+
+    return () => {
+      clearInterval(tokenCheckInterval);
+      window.removeEventListener('tokenExpired', handleTokenExpiredEvent);
+    };
+  }, [user]);
+
+  // Handle automatic logout when token expires
+  const handleAutoLogout = async () => {
+    if (!user) return; // Already logged out
+
+    try {
+      await logout();
+      setUser(null);
+      
+      // Reset app state
+      setCurrentPage('home');
+      setDisplayMode('properties');
+      setProperties([]);
+      setMessages([]);
+      setMapCenter(null);
+      setMapZoom(12);
+      setSelectedPropertyId(null);
+      setHighlightedPropertyId(null);
+      setSchoolInfo(null);
+      setSchoolZone(null);
+      setSelectedLocation(null);
+      setIsMapClickMode(false);
+      setCommuteSearchData(null);
+      
+      // Show notification
+      showWarning(
+        'Your session has expired. You have been automatically logged out.',
+        {
+          title: 'Session Expired',
+          duration: 5000
+        }
+      );
+      
+    } catch (error) {
+      console.error('Error during automatic logout:', error);
+      // Force logout even if there's an error
+      setUser(null);
+      localStorage.removeItem('ask4rent_access_token');
+      localStorage.removeItem('ask4rent_user');
+      localStorage.removeItem('ask4rent_token_timestamp');
+      
+      showError('Session expired. Please log in again if needed.');
+    }
+  };
 
   const getResultText = () => {
     if (sessionLoading) return "Initializing session...";
@@ -906,7 +1130,13 @@ function App() {
           onShowFavorites={() => setShowFavoritesList(true)}
           onShowLogin={() => setShowLogin(true)}
           onLogout={handleLogout}
-          onNavigateHome={() => setCurrentPage('home')}
+          onNavigateHome={() => {
+            setCurrentPage('home');
+            resetPropertyFilters();
+            setProperties([]);
+            setMessages([]);
+            setDisplayMode('properties');
+          }}
           currentPage={currentPage}
         />
         <HomePage 
@@ -1133,6 +1363,10 @@ function App() {
                 />
               ) : (
                 <>
+                  <PropertyFilters 
+                    onFilterChange={handlePropertyFilter}
+                    displayMode={displayMode}
+                  />
                   {displayProperties.map((property, index) => {
                     const propertyId = property.id || property.address;
                     const isHighlighted = highlightedPropertyId === propertyId;
@@ -1161,19 +1395,6 @@ function App() {
                     }`}>
                       {getIcon('home', 'xl', isSelected ? 'primary' : 'muted')}
                       
-                      {/* Status and type badges */}
-                      <div className="absolute top-3 left-3 flex flex-col gap-2">
-                        <span className="inline-block bg-green-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm">
-                          Available Now
-                        </span>
-                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium shadow-sm transition-colors ${
-                          isSelected 
-                            ? 'bg-blue-500 text-white shadow-blue-200' 
-                            : 'bg-white/90 text-gray-700 backdrop-blur-sm'
-                        }`}>
-                          {property.property_type || 'Rental'}
-                        </span>
-                      </div>
 
                       {/* Favorite button */}
                       <div className="absolute top-3 right-3">
@@ -1250,13 +1471,11 @@ function App() {
                       </div>
                       
                       {/* Property amenities hint */}
-                      {(property.parking > 0 || property.bedrooms >= 3) && (
+                      {property.parking > 0 && (
                         <div className="mb-2 flex items-center gap-1 text-xs text-green-600 bg-green-50 rounded-full px-2 py-1">
                           {getIcon('checkCircle', 'xs', 'success')}
                           <span className="font-medium">
-                            {property.parking > 0 && 'Parking'}
-                            {property.parking > 0 && property.bedrooms >= 3 && ' • '}
-                            {property.bedrooms >= 3 && 'Family Size'}
+                            Parking
                           </span>
                         </div>
                       )}

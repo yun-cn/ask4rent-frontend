@@ -104,9 +104,10 @@ export const login = async (email, password, sessionId) => {
     const data = await response.json();
     console.log('Login response:', data);
     
-    // Store access token in localStorage
+    // Store access token and timestamp in localStorage
     localStorage.setItem('ask4rent_access_token', data.access_token);
     localStorage.setItem('ask4rent_user', JSON.stringify(data.user));
+    localStorage.setItem('ask4rent_token_timestamp', Date.now().toString());
     
     return {
       success: true,
@@ -150,11 +151,39 @@ export const getStoredUser = () => {
   }
 }
 
-// Check if user is logged in
+// Check if token is expired (30 minutes)
+export const isTokenExpired = () => {
+  const tokenTimestamp = localStorage.getItem('ask4rent_token_timestamp');
+  if (!tokenTimestamp) {
+    return true; // No timestamp means token is invalid
+  }
+  
+  const now = Date.now();
+  const tokenTime = parseInt(tokenTimestamp);
+  const thirtyMinutesInMs = 30 * 60 * 1000; // 30 minutes
+  
+  return (now - tokenTime) > thirtyMinutesInMs;
+};
+
+// Check if user is logged in and token is valid
 export const isLoggedIn = () => {
   const token = getAccessToken();
   const user = getStoredUser();
-  return !!(token && user);
+  
+  if (!token || !user) {
+    return false;
+  }
+  
+  // Check if token is expired
+  if (isTokenExpired()) {
+    // Clear expired data
+    localStorage.removeItem('ask4rent_access_token');
+    localStorage.removeItem('ask4rent_user');
+    localStorage.removeItem('ask4rent_token_timestamp');
+    return false;
+  }
+  
+  return true;
 }
 
 // Logout function
@@ -162,6 +191,7 @@ export const logout = async () => {
   // Remove user authentication data
   localStorage.removeItem('ask4rent_access_token');
   localStorage.removeItem('ask4rent_user');
+  localStorage.removeItem('ask4rent_token_timestamp');
   
   // Clear the old session to ensure favorites are reset
   clearSession();
@@ -177,6 +207,24 @@ export const logout = async () => {
     console.error('Error creating new session after logout:', error);
   }
 }
+
+// Handle token expiration for API responses
+export const handleTokenExpiration = async (response) => {
+  if (response.status === 401 || response.status === 403) {
+    console.log('Token expired or invalid, automatically logging out');
+    
+    // Clear expired token data
+    localStorage.removeItem('ask4rent_access_token');
+    localStorage.removeItem('ask4rent_user');
+    localStorage.removeItem('ask4rent_token_timestamp');
+    
+    // Trigger logout event for UI updates
+    window.dispatchEvent(new CustomEvent('tokenExpired'));
+    
+    return true; // Indicates token was expired
+  }
+  return false; // Token is still valid
+};
 
 export const getSession = async () => {
   try {
@@ -743,6 +791,8 @@ export const addFavorite = async (sessionId, listingId) => {
     });
 
     if (!response.ok) {
+      // Handle token expiration
+      await handleTokenExpiration(response);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
@@ -787,6 +837,8 @@ export const removeFavorite = async (sessionId, listingId) => {
     });
 
     if (!response.ok) {
+      // Handle token expiration
+      await handleTokenExpiration(response);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
@@ -832,11 +884,9 @@ export const getFavorites = async (sessionId) => {
 
     if (!response.ok) {
       // Handle token expiration
-      if (response.status === 401 || response.status === 403) {
-        console.log('Token expired or invalid, clearing authentication');
-        localStorage.removeItem('ask4rent_access_token');
-        localStorage.removeItem('ask4rent_user');
-        // Retry without token
+      const tokenExpired = await handleTokenExpiration(response);
+      if (tokenExpired) {
+        // Retry without token after clearing expired data
         delete headers['Authorization'];
         const retryResponse = await fetch(`${API_BASE_URL}/favorites/get`, {
           method: 'POST',

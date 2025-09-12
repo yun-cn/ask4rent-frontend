@@ -71,8 +71,45 @@ export const useSessionManager = () => {
   }, [sessionId, initializeSession]);
 
   // Handle user interaction to refresh session
-  const handleUserInteraction = useCallback(() => {
+  const handleUserInteraction = useCallback((event) => {
     if (!sessionId || !isSessionValid) return;
+    
+    // Skip session refresh for input events to avoid interrupting user typing
+    if (event && event.target) {
+      const target = event.target;
+      
+      // Check if it's an input element directly
+      if (target.tagName === 'INPUT' || 
+          target.tagName === 'TEXTAREA' ||
+          target.contentEditable === 'true') {
+        // Only update activity timestamp, don't refresh session
+        updateLastActivity();
+        return;
+      }
+      
+      // Check if it's inside an input element (with safe closest check)
+      if (target.closest && typeof target.closest === 'function') {
+        try {
+          if (target.closest('input') || target.closest('textarea')) {
+            updateLastActivity();
+            return;
+          }
+        } catch (e) {
+          // Fallback if closest fails
+          console.warn('closest method failed:', e);
+        }
+      }
+      
+      // Alternative check by walking up the DOM tree manually
+      let parent = target.parentNode;
+      while (parent && parent.nodeType === 1) { // Element node
+        if (parent.tagName === 'INPUT' || parent.tagName === 'TEXTAREA') {
+          updateLastActivity();
+          return;
+        }
+        parent = parent.parentNode;
+      }
+    }
     
     updateLastActivity();
     
@@ -103,14 +140,20 @@ export const useSessionManager = () => {
 
     const interactionEvents = [
       'click', 
-      'keydown', 
       'scroll', 
-      'mousemove', 
       'touchstart'
     ];
+    
+    // Separate event for keyboard interactions with different handling
+    const keyboardEvents = ['keydown'];
 
-    // Add event listeners
+    // Add event listeners for general interactions
     interactionEvents.forEach(event => {
+      document.addEventListener(event, handleUserInteraction, { passive: true });
+    });
+    
+    // Add keyboard event listeners with special handling
+    keyboardEvents.forEach(event => {
       document.addEventListener(event, handleUserInteraction, { passive: true });
     });
 
@@ -120,6 +163,10 @@ export const useSessionManager = () => {
     // Cleanup function
     return () => {
       interactionEvents.forEach(event => {
+        document.removeEventListener(event, handleUserInteraction);
+      });
+      
+      keyboardEvents.forEach(event => {
         document.removeEventListener(event, handleUserInteraction);
       });
       
@@ -172,11 +219,27 @@ export const useSessionManager = () => {
     };
   }, []);
 
+  // Manual trigger for session refresh (for explicit user actions)
+  const triggerSessionRefresh = useCallback(() => {
+    if (!sessionId || !isSessionValid) return;
+    
+    updateLastActivity();
+    
+    // Clear existing timeout and set a new one
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+    
+    // Refresh session immediately for important actions
+    handleRefreshSession();
+  }, [sessionId, isSessionValid, handleRefreshSession]);
+
   return {
     sessionId,
     isSessionValid,
     isLoading,
     refreshSession: handleRefreshSession,
+    triggerSessionRefresh,
     initializeSession
   };
 };
