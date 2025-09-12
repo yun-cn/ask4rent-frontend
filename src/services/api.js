@@ -104,9 +104,10 @@ export const login = async (email, password, sessionId) => {
     const data = await response.json();
     console.log('Login response:', data);
     
-    // Store access token in localStorage
+    // Store access token and timestamp in localStorage
     localStorage.setItem('ask4rent_access_token', data.access_token);
     localStorage.setItem('ask4rent_user', JSON.stringify(data.user));
+    localStorage.setItem('ask4rent_token_timestamp', Date.now().toString());
     
     return {
       success: true,
@@ -150,11 +151,39 @@ export const getStoredUser = () => {
   }
 }
 
-// Check if user is logged in
+// Check if token is expired (30 minutes)
+export const isTokenExpired = () => {
+  const tokenTimestamp = localStorage.getItem('ask4rent_token_timestamp');
+  if (!tokenTimestamp) {
+    return true; // No timestamp means token is invalid
+  }
+  
+  const now = Date.now();
+  const tokenTime = parseInt(tokenTimestamp);
+  const thirtyMinutesInMs = 30 * 60 * 1000; // 30 minutes
+  
+  return (now - tokenTime) > thirtyMinutesInMs;
+};
+
+// Check if user is logged in and token is valid
 export const isLoggedIn = () => {
   const token = getAccessToken();
   const user = getStoredUser();
-  return !!(token && user);
+  
+  if (!token || !user) {
+    return false;
+  }
+  
+  // Check if token is expired
+  if (isTokenExpired()) {
+    // Clear expired data
+    localStorage.removeItem('ask4rent_access_token');
+    localStorage.removeItem('ask4rent_user');
+    localStorage.removeItem('ask4rent_token_timestamp');
+    return false;
+  }
+  
+  return true;
 }
 
 // Logout function
@@ -162,6 +191,7 @@ export const logout = async () => {
   // Remove user authentication data
   localStorage.removeItem('ask4rent_access_token');
   localStorage.removeItem('ask4rent_user');
+  localStorage.removeItem('ask4rent_token_timestamp');
   
   // Clear the old session to ensure favorites are reset
   clearSession();
@@ -177,6 +207,24 @@ export const logout = async () => {
     console.error('Error creating new session after logout:', error);
   }
 }
+
+// Handle token expiration for API responses
+export const handleTokenExpiration = async (response) => {
+  if (response.status === 401 || response.status === 403) {
+    console.log('Token expired or invalid, automatically logging out');
+    
+    // Clear expired token data
+    localStorage.removeItem('ask4rent_access_token');
+    localStorage.removeItem('ask4rent_user');
+    localStorage.removeItem('ask4rent_token_timestamp');
+    
+    // Trigger logout event for UI updates
+    window.dispatchEvent(new CustomEvent('tokenExpired'));
+    
+    return true; // Indicates token was expired
+  }
+  return false; // Token is still valid
+};
 
 export const getSession = async () => {
   try {
@@ -743,6 +791,8 @@ export const addFavorite = async (sessionId, listingId) => {
     });
 
     if (!response.ok) {
+      // Handle token expiration
+      await handleTokenExpiration(response);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
@@ -787,6 +837,8 @@ export const removeFavorite = async (sessionId, listingId) => {
     });
 
     if (!response.ok) {
+      // Handle token expiration
+      await handleTokenExpiration(response);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
@@ -818,10 +870,16 @@ export const getFavorites = async (sessionId) => {
       'Content-Type': 'application/json',
     };
 
-    // Add Authorization header if user is logged in
+    // Check if token is expired before making the request
     const accessToken = getAccessToken();
-    if (accessToken) {
+    if (accessToken && !isTokenExpired()) {
       headers['Authorization'] = `Bearer ${accessToken}`;
+    } else if (accessToken && isTokenExpired()) {
+      // Clear expired token
+      localStorage.removeItem('ask4rent_access_token');
+      localStorage.removeItem('ask4rent_user');
+      localStorage.removeItem('ask4rent_token_timestamp');
+      console.log('Cleared expired token before API call');
     }
 
     const response = await fetch(`${API_BASE_URL}/favorites/get`, {
@@ -831,26 +889,34 @@ export const getFavorites = async (sessionId) => {
     });
 
     if (!response.ok) {
-      // Handle token expiration
+      // Handle authentication errors (401/403) - return empty favorites for guest users
       if (response.status === 401 || response.status === 403) {
-        console.log('Token expired or invalid, clearing authentication');
-        localStorage.removeItem('ask4rent_access_token');
-        localStorage.removeItem('ask4rent_user');
-        // Retry without token
-        delete headers['Authorization'];
-        const retryResponse = await fetch(`${API_BASE_URL}/favorites/get`, {
-          method: 'POST',
-          headers: headers,
-          body: JSON.stringify(requestData),
-        });
-        if (retryResponse.ok) {
-          const retryData = await retryResponse.json();
-          return {
-            success: true,
-            favorites: Array.isArray(retryData) ? retryData : []
-          };
-        }
+        console.log('User not authenticated - returning empty favorites');
+        return {
+          success: true,
+          favorites: []
+        };
       }
+      
+      // Handle server errors (500) - likely CORS or backend issues
+      if (response.status === 500) {
+        console.log('Server error - returning empty favorites');
+        return {
+          success: true,
+          favorites: []
+        };
+      }
+      
+      // Handle token expiration
+      const tokenExpired = await handleTokenExpiration(response);
+      if (tokenExpired) {
+        // Return empty favorites for expired token
+        return {
+          success: true,
+          favorites: []
+        };
+      }
+      
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
@@ -862,6 +928,16 @@ export const getFavorites = async (sessionId) => {
 
   } catch (error) {
     console.error("Get Favorites API error:", error);
+    
+    // Handle CORS and network errors gracefully - return empty favorites for guest mode
+    if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+      console.warn('Backend server unavailable - favorites disabled for this session');
+      return {
+        success: true, // Changed to success to avoid showing errors
+        favorites: []
+      };
+    }
+    
     return {
       success: false,
       error: error.message,

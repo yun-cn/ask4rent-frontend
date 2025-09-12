@@ -4,6 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { getIcon } from '../utils/icons';
 
+
 // Fix for default markers in React Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -51,6 +52,7 @@ const MapComponent = ({
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [isFilterOpen]);
+
 
 
   // Create custom icons for selected and normal markers
@@ -291,7 +293,7 @@ const MapComponent = ({
         map.off('click', handleClick);
         map.getContainer().style.cursor = '';
       };
-    }, [map]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [map, isMapClickMode, onMapClick]);
     
     return null;
   };
@@ -353,41 +355,6 @@ const MapComponent = ({
     );
   };
 
-  const PropertyFilters = () => {
-    if (displayMode !== 'properties' || !properties || properties.length === 0) {
-      return null;
-    }
-
-    return (
-      <div className="absolute top-4 left-96 z-[1000] pointer-events-auto">
-        <div className="flex items-center gap-3 bg-white rounded-lg shadow-lg border border-gray-200 p-3">
-          <input
-            type="number"
-            placeholder="Min $"
-            className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-          <input
-            type="number"
-            placeholder="Max $"
-            className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-          <select className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white">
-            <option value="">Any beds</option>
-            <option value="1">1 bed</option>
-            <option value="2">2 beds</option>
-            <option value="3">3 beds</option>
-            <option value="4">4 beds</option>
-          </select>
-          <select className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white">
-            <option value="">Any baths</option>
-            <option value="1">1 bath</option>
-            <option value="2">2 baths</option>
-            <option value="3">3 baths</option>
-          </select>
-        </div>
-      </div>
-    );
-  };
 
   const createLocationIcon = () => {
     const iconHtml = `
@@ -444,7 +411,6 @@ const MapComponent = ({
       <MapClickHandler />
       <CustomZoomControl />
       <TerritorialAuthorityFilter />
-      <PropertyFilters />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

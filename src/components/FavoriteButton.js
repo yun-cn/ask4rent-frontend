@@ -6,17 +6,18 @@ const FavoriteButton = ({
   size = 'medium', 
   showText = false,
   className = '',
-  onToggle
+  onToggle,
+  forceState = null,
+  removeOnly = false
 }) => {
-  const { isFavorited, toggleFavorite } = useFavorites();
+  const { isFavorited, toggleFavorite, removeFromFavorites } = useFavorites();
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleToggle = async (e) => {
-    e.stopPropagation(); // Prevent event bubbling
+    e.stopPropagation();
     
     if (isProcessing) return;
 
-    // Validate listingId
     if (!listingId || isNaN(listingId)) {
       console.warn('Invalid listing ID:', listingId);
       if (onToggle) {
@@ -27,9 +28,17 @@ const FavoriteButton = ({
 
     setIsProcessing(true);
     try {
-      const result = await toggleFavorite(parseInt(listingId));
-      if (onToggle) {
-        onToggle(listingId, !isFavorited(listingId), result);
+      let result;
+      if (removeOnly) {
+        result = await removeFromFavorites(parseInt(listingId));
+        if (onToggle) {
+          onToggle(listingId, false, result);
+        }
+      } else {
+        result = await toggleFavorite(parseInt(listingId));
+        if (onToggle) {
+          onToggle(listingId, !isFavorited(listingId), result);
+        }
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
@@ -41,9 +50,8 @@ const FavoriteButton = ({
     }
   };
 
-  const isCurrentlyFavorited = isFavorited(listingId);
+  const isCurrentlyFavorited = forceState !== null ? forceState : isFavorited(listingId);
 
-  // Size configurations
   const sizeConfigs = {
     small: {
       button: 'w-6 h-6 text-xs',
